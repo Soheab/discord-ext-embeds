@@ -1,9 +1,12 @@
-from typing import NamedTuple
+from datetime import datetime
+from typing import ClassVar, NamedTuple
 
 from discord.utils import MISSING
 
 
 class _EmbedLimits(NamedTuple):
+    last_updated: ClassVar[datetime] = datetime(year=2023, month=11, day=15)
+
     title: int
     description: int
     fields: int
@@ -11,6 +14,19 @@ class _EmbedLimits(NamedTuple):
     field_value: int
     footer_text: int
     author_name: int
+
+    def get_limit_of(self, name: str) -> int:
+        aliases = {
+            "author": "author_name",
+            "footer": "footer_text",
+            "field": "fields",
+        }
+        name = aliases.get(name, name)
+        try:
+            return getattr(self, name)
+        except AttributeError:
+            valid_attrs = ", ".join(k for k, v in self.__annotations__.items() if v is int)
+            raise ValueError(f"{name} is not a valid embed attribute. Valid attributes are: {valid_attrs}")
 
     def edit(
         self,
@@ -39,14 +55,3 @@ class _EmbedLimits(NamedTuple):
         return self._replace(**kwargs)
 
 
-# https://discord.com/developers/docs/resources/channel#embed-object
-# 10 November, 2023
-EMBED_LIMITS = _EmbedLimits(
-    title=256,
-    description=4096,
-    fields=25,
-    field_name=256,
-    field_value=1024,
-    footer_text=2048,
-    author_name=256,
-)

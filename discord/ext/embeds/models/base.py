@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, ClassVar, Any, Optional
+from typing import TYPE_CHECKING, ClassVar, Any, Literal, Optional, Union
+
+from reprlib import recursive_repr
 
 from dataclasses import asdict, dataclass, field
 
@@ -19,6 +21,11 @@ if TYPE_CHECKING:
 class BaseEmbedDataclass:
     def __call__(self, *args: Any, **kwargs: Any):
         return self.from_dict(*args, **kwargs)
+    
+    @recursive_repr()
+    def __repr__(self) -> str:
+        human_attrs = ", ".join(f"{attr}={value!r}" for attr, value in self.__dict__.items())
+        return f"<{self.__class__.__name__} {human_attrs}>"
 
     @classmethod
     def from_dict(cls, data: PossibleData) -> Self:
@@ -55,6 +62,34 @@ class WithIconURL(BaseEmbedDataclass):
             self.icon_url = EmbedMedia.URL_WITH_FILE_PLACEHOLDER.format(self.icon_file.filename)
 
         del EmbedMedia
+
+    @classmethod
+    def from_user(cls, user: Union[discord.Member, discord.User]) -> WithIconURL:
+        """Create an instance of this class from a :class:`~discord.User` or :class:`~discord.Member` object.
+
+        This method will attempt to use the ``name`` or ``text`` field of the class to set the user's display name 
+        and the ``icon_url`` field to set the user's display_avatar.
+        Parameters
+        ----------
+        user: Union[discord.Member, discord.User]
+            The user to create the instance from.    
+        """
+        all_fields = cls.__dataclass_fields__
+
+        name = user.display_name
+        avatar_url = user.display_avatar.url
+
+        kwargs: dict[Literal["name", "text", "icon_url"], str] = {
+            "icon_url": avatar_url,
+        }
+        if "name" in all_fields:
+            kwargs["name"] = name
+        elif "text" in all_fields:
+            kwargs["text"] = name
+        else:
+            raise TypeError("Cannot determine which field to use for the user's display name")
+
+        return cls(**kwargs)  # type: ignore # not sure why this is an error, not even using icon_file
 
     @discord.utils.cached_property
     def media(self) -> Optional[EmbedMedia]:

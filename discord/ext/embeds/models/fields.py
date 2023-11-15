@@ -46,6 +46,9 @@ class EmbedField(BaseEmbedDataclass):
     def __post_init__(self) -> None:
         self.value = str(self.value) if self.value is not None else "\u200b"
 
+    def __repr__(self) -> str:
+        return f"<EmbedField name={self.name!r} value={self.value!r} inline={self.inline} index={self.index}>"
+
     def fill_index(self, index: Optional[int], fields: list[EmbedField]) -> None:
         if index is None:
             inx = fields.index(self)

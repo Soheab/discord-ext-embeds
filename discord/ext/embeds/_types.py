@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Literal, NotRequired, Protocol, Tuple, Type, TypedDict, Union, type_check_only
+from typing import TYPE_CHECKING, Literal, NotRequired, Protocol, Sized, Tuple, Type, TypedDict, Union, type_check_only
 
 if TYPE_CHECKING:
     from .models import *
@@ -18,8 +18,10 @@ if TYPE_CHECKING:
 
 
 @type_check_only
-class SupportsCastingToString(Protocol):
+class SupportsCastingToString(Protocol[Sized]):
     def __str__(self) -> str:
+        ...
+    def __len__(self) -> int:
         ...
 
 

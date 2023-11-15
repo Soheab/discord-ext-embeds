@@ -3,7 +3,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
-    NamedTuple,
     Type,
     TypeVar,
     Union,
@@ -39,19 +38,12 @@ if TYPE_CHECKING:
         EmbedType as EmbedTypeData,
     )
 
-    from ._types import PossibleMessage, SupportsCastingToString, PossibleClassTypes
-
-    Field_NameValue = tuple[str, str]
-    Field_NameValueInline = tuple[str, str, bool]
-    Field_NameValueInlineIndex = tuple[str, str, bool, int]
-    Field_NameValueIndex = tuple[str, str, int]
-
-    Field_Values = Union[
-        Field_NameValue,
-        Field_NameValueInline,
-        Field_NameValueInlineIndex,
-        Field_NameValueIndex,
-    ]
+    from ._types import (
+        PossibleMessage,
+        SupportsCastingToString,
+        PossibleClassTypes,
+        Field_Values,
+    )
 
     Interaction = discord.Interaction[Any]
     Context = commands.Context[Any]
@@ -70,54 +62,6 @@ else:
     DescriptionT = TypeVar("DescriptionT", bound=Optional[str], covariant=True)
 
 
-class _EmbedLimits(NamedTuple):
-    title: int
-    description: int
-    fields: int
-    field_name: int
-    field_value: int
-    footer_text: int
-    author_name: int
-
-    def edit(
-        self,
-        *,
-        title: int = MISSING,
-        description: int = MISSING,
-        fields: int = MISSING,
-        field_name: int = MISSING,
-        field_value: int = MISSING,
-        footer_text: int = MISSING,
-        author_name: int = MISSING,
-    ) -> "_EmbedLimits":
-        kwargs = {}
-        values = ((title, "title"), (description, "description"), (fields, "fields"), (field_name, "field_name"), (field_value, "field_value"), (footer_text, "footer_text"), (author_name, "author_name"))	
-        for value, name in values:
-            if value is MISSING:
-                continue
-            if not isinstance(value, int):
-                raise TypeError(f"{name} must be an integer.")
-
-            if value < 0:
-                raise ValueError(f"{name} can't be negative.")
-            
-            kwargs[name] = value
-        
-        return self._replace(**kwargs)
-
-
-# https://discord.com/developers/docs/resources/channel#embed-object
-# 10 November, 2023
-EMBED_LIMITS = _EmbedLimits(
-    title=256,
-    description=4096,
-    fields=25,
-    field_name=256,
-    field_value=1024,
-    footer_text=2048,
-    author_name=256,
-)
-
 
 class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
     """A subclass of :class:`discord.Embed` that adds some extra functionality.
@@ -135,11 +79,11 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         The URL of the embed.
     timestamp: Optional[:class:`datetime.datetime`]
         The timestamp of the embed.
-    image: Optional[Union[:class:`str`, :class:`discord.File`]]
+    image: Optional[Union[:class:`str`, :class:`discord.File`, :class:`EmbedMedia`]]
         The image of the embed. Can be a URL or a :class:`discord.File`.
     fields: Optional[list[:class:`EmbedField`]]
         The fields of the embed as a list of :class:`EmbedField`.
-    thumbnail: Optional[Union[:class:`str`, :class:`discord.File`]]
+    thumbnail: Optional[Union[:class:`str`, :class:`discord.File`, :class:`EmbedMedia`]]
         The thumbnail of the embed. Can be a URL or a :class:`discord.File`.
     footer: Optional[Union[:class:`str`, :class:`EmbedFooter`, :class:`discord.Member`, :class:`discord.User`]]
         The footer of the embed. Can be a string for the text, an instance of :class:`EmbedFooter` or a user object.
@@ -149,9 +93,30 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         If a user object is passed, the author name will be set to ``.display_name`` and icon_url to ``.display_avatar.url``.
     check_limits: :class:`bool`
         Whether to check the (hardcoded) embed limits as documented in the API docs. Defaults to ``True``.
-    author_object: Optional[Union[:class:`discord.Member`, :class:`discord.User`]]
-        The author object of the embed. This is used to set the default author name and icon_url.
+        These limits can be edited by using ``.edit`` on the ``.limits`` attribute.
+        Example:
+
+        .. code-block:: python3
+            :linenos:
+
+            embed = Embed()
+            # the API will error out if the limit is higher than they allow.
+            embed.LIMITS.edit(
+                title=100
+            )
+
+        :exc:`LimitReached` will be raised if the limit is reached.
     """
+    # https://discord.com/developers/docs/resources/channel#embed-object
+    LIMITS: _EmbedLimits = _EmbedLimits(
+        title=256,
+        description=4096,
+        fields=25,
+        field_name=256,
+        field_value=1024,
+        footer_text=2048,
+        author_name=256,
+    )
 
     _fields: EmbedFields
 
@@ -195,9 +160,9 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         color: Optional[Union[int, discord.Colour, str]] = discord.Colour.dark_theme(),
         url: Optional[SupportsCastingToString] = None,
         timestamp: Optional[datetime] = None,
-        image: Optional[Union[str, discord.File]] = None,
+        image: Optional[Union[str, discord.File, EmbedMedia]] = None,
         fields: list[EmbedField] = [],
-        thumbnail: Optional[Union[str, discord.File]] = None,
+        thumbnail: Optional[Union[str, discord.File, EmbedMedia]] = None,
         footer: Optional[Union[str, EmbedFooter, User]] = None,
         author: Optional[Union[str, EmbedAuthor, User]] = None,
         check_limits: bool = True,
@@ -206,9 +171,14 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
         self.type: EmbedTypeData = "rich"
 
-        self.title = title
-        if self.title is not None:
-            self.title = str(title)
+        with_set_methods = (
+            ("title", title),
+            ("description", description),
+            ("url", url),
+            ("timestamp", timestamp),
+        )
+        for attr, value in with_set_methods:
+            getattr(self, f"set_{attr}")(value)
 
         self.description = description
         if self.description is not None:
@@ -217,13 +187,6 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         _colour = colour if colour is not None else color
         if _colour is not None:
             self.colour = _colour
-
-        self.url = str(url) if url is not None else None
-        if self.url is not None:
-            self.url = str(url)
-
-        if timestamp is not None:
-            self.timestamp = timestamp
 
         if fields:
             self.fields = fields
@@ -251,17 +214,6 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
             delattr(self, attribute)
         except AttributeError:
             pass
-
-    def limits(self) -> _EmbedLimits:
-        return _EmbedLimits(
-            title=256,
-            description=4096,
-            fields=25,
-            field_name=256,
-            field_value=1024,
-            footer_text=2048,
-            author_name=256,
-        )
 
     @classmethod
     def from_dpy_embed(cls, embed_instance: discord.Embed) -> Embed[Any, Any]:
@@ -329,61 +281,61 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
     # BASIC ATTRIBUTES
 
-    def set_description(self, description: SupportsCastingToString, /) -> Self:
+    def set_description(self, description: Optional[SupportsCastingToString], /) -> Self:
         """Sets the description of the embed.
 
         Parameters
         ----------
-        description: :class:`str`
-            The description of the embed.
+        description: Optional[:class:`str`]
+            The description of the embed. ``None`` to remove.
 
         Returns
         -------
         :class:`Embed`
             The embed itself.
         """
-        self.description = str(description)
+        self.description = str(description) if description is not None else None
         return self
 
-    def set_title(self, title: SupportsCastingToString, /) -> Self:
+    def set_title(self, title: Optional[SupportsCastingToString], /) -> Self:
         """Sets the title of the embed.
 
         Parameters
         ----------
-        title: :class:`str`
-            The title of the embed.
+        title: Optional[:class:`str`]
+            The title of the embed. ``None`` to remove.
 
         Returns
         -------
         :class:`Embed`
             The embed itself.
         """
-        self.title = str(title)
+        self.title = str(title) if title is not None else None
         return self
 
-    def set_url(self, url: SupportsCastingToString, /) -> Self:
+    def set_url(self, url: Optional[SupportsCastingToString], /) -> Self:
         """Sets the URL of the embed.
 
         Parameters
         ----------
-        url: :class:`str`
-            The URL of the embed.
+        url: Optional[:class:`str`]
+            The URL of the embed. ``None`` to remove.
 
         Returns
         -------
         :class:`Embed`
             The embed itself.
         """
-        self.url = str(url)
+        self.url = str(url) if url is not None else None
         return self
 
-    def set_colour(self, colour: Union[int, discord.Colour], /) -> Self:
+    def set_colour(self, colour: Optional[Union[int, discord.Colour]], /) -> Self:
         """Sets the colour of the embed.
 
         Parameters
         ----------
-        colour: Union[:class:`int`, :class:`discord.Colour`]
-            The colour of the embed.
+        colour: Optional[Union[:class:`int`, :class:`discord.Colour`]]
+            The colour of the embed. ``None`` to remove the colour.
 
         Returns
         -------
@@ -393,28 +345,15 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         self.colour = colour
         return self
 
-    def set_color(self, color: Union[int, discord.Colour], /) -> Self:
-        """Sets the colour of the embed.
+    set_color = set_colour
+    """Alias for :meth:`Embed.set_colour`."""
 
-        Parameters
-        ----------
-        color: Union[:class:`int`, :class:`discord.Colour`]
-            The colour of the embed.
-
-        Returns
-        -------
-        :class:`Embed`
-            The embed itself.
-        """
-        self.colour = color
-        return self
-
-    def set_timestamp(self, timestamp: datetime, /) -> Self:
+    def set_timestamp(self, timestamp: Optional[datetime], /) -> Self:
         """Sets the timestamp of the embed.
 
         Parameters
         ----------
-        timestamp: :class:`datetime.datetime`
+        timestamp: Optional[:class:`datetime.datetime`]
             The timestamp of the embed.
 
         Returns
@@ -422,7 +361,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         :class:`Embed`
             The embed itself.
         """
-        self.timestamp = timestamp
+        self.timestamp = timestamp 
         return self
 
     def set_image(
@@ -1070,7 +1009,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         return utils._maybe_construct("author", getattr(self, "_author", {}))
 
     @author.setter
-    def author(self, author: Union[SupportsCastingToString, EmbedAuthor]) -> None:
+    def author(self, author: Union[SupportsCastingToString, EmbedAuthor, User]) -> None:
         """Sets the author of the embed.
 
         Parameters
@@ -1220,24 +1159,64 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
                 result["timestamp"] = final_timestamp.isoformat()
 
         if self._check_limits:
-            limits = self.limits()
+            limits = self.LIMITS
 
-            title = result.get("title", "")
-            description = result.get("description", "")
-            fields = result.get("fields", [])
-            footer_text = result.get("footer", {}).get("text", "")
-            author_name = result.get("author", {}).get("name", "")
+            # title
+            if self.title and len(self.title) > limits.title:
+                raise LimitReached(
+                    "title",
+                    limits.title,
+                    len(self.title),
+                )
+            # description
+            if self.description and len(self.description) > limits.description:
+                raise LimitReached(
+                    "description",
+                    limits.description,
+                    len(self.description),
+                )
+            # footer_text
+            if self.footer and self.footer.text and len(self.footer.text) > limits.footer_text:
+                raise LimitReached(
+                    "footer_text",
+                    limits.footer_text,
+                    len(self.footer.text),
+                )
+            # author_name
+            if self.author and self.author.name and len(self.author.name) > limits.author_name:
+                raise LimitReached(
+                    "author_name",
+                    limits.author_name,
+                    len(self.author.name),
+                )
+            # fields
+            if self.fields:
+                if len(self.fields) > limits.fields:
+                    raise LimitReached(
+                        "fields",
+                        limits.fields,
+                        len(self.fields),
+                    )
+                # field_name
+                for idx, field in enumerate(self.fields):
+                    if len(field.name) > limits.field_name:
+                        raise LimitReached(
+                            f"field_name",
+                            limits.field_name,
+                            len(field.name),
+                            field_index=idx,
+                            object=field,
+                        )
+                    # field_value
+                    if len(field.value) > limits.field_value:
+                        raise LimitReached(
+                            f"field_value",
+                            limits.field_value,
+                            len(field.value),
+                            field_index=idx,
+                            object=field,
+                        )
 
-            for key, value in (
-                ("title", title),
-                ("description", description),
-                ("footer_text", footer_text),
-                ("author_name", author_name),
-                ("fields", fields),
-            ):
-                if (current_len := len(value)) > (limit := getattr(limits, key)):
-                    raise LimitReached(key, limit, current_len)
-                    # raise ValueError(f"Embed {key} is too long. (Max: {getattr(EMBED_LIMITS, key)})")
 
         return result  # type: ignore
 
