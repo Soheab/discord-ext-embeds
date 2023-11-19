@@ -424,7 +424,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         self,
         *,
         text: Optional[SupportsCastingToString],
-        icon: Optional[Union[SupportsCastingToString, discord.File]],
+        icon: Optional[Union[SupportsCastingToString, discord.File]] = None,
         icon_url: Optional[SupportsCastingToString] = None,
     ) -> Self:
         """Sets the footer of the embed.
@@ -464,7 +464,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         self,
         *,
         name: Optional[SupportsCastingToString],
-        icon: Optional[Union[SupportsCastingToString, discord.File]],
+        icon: Optional[Union[SupportsCastingToString, discord.File]] = None,
         icon_url: Optional[SupportsCastingToString] = None,
     ) -> Self:
         """Sets the footer of the embed.
