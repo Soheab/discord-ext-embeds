@@ -6,6 +6,8 @@ from dataclasses import is_dataclass, make_dataclass, dataclass as _dataclass
 if TYPE_CHECKING:
     from ._types import PossibleData, EmbedMediaData
 
+__all__ = ()
+
 # kw_only is only available in Python 3.10+
 KW_ONLY_DATACLASS = dict(kw_only=True) if "kw_only" in _dataclass.__kwdefaults__ else {}
 

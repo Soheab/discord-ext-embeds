@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         EmbedThumbnail as EmbedThumbnailData,
     )
 
+__all__ = ()
 
 @type_check_only
 class SupportsCastingToString(Protocol[Sized]):

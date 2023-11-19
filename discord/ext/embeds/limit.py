@@ -3,7 +3,7 @@ from typing import ClassVar, NamedTuple
 
 from discord.utils import MISSING
 
-
+__all__ = ()
 class _EmbedLimits(NamedTuple):
     last_updated: ClassVar[datetime] = datetime(year=2023, month=11, day=15)
 
