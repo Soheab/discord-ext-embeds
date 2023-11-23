@@ -27,7 +27,6 @@ from .models import (
     EmbedProvider,
 )
 from .enums import EmbedMediaType, MultiImagesType
-from .limit import _EmbedLimits
 from . import utils
 
 if TYPE_CHECKING:
@@ -1297,11 +1296,10 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         :class:`Embed`
             The constructed embed.
         """
-        if isinstance(data, discord.Embed):
-            return cls.from_dpy_embed(data)
-
         # we are bypassing __init__ here since it doesn't apply here
         self: Self = cls.__new__(cls)
+        # set in __init__ but we are bypassing it
+        self._check_limits = True
 
         # fill in the basic fields
         self.type: EmbedTypeData = data.get("type")  # type: ignore
