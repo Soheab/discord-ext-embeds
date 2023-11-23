@@ -14,3 +14,12 @@ class EmbedMediaType(Enum):
     """Media is a footer icon."""
     author_icon = "author_icon"
     """Media is an author icon."""
+
+
+class MultiImagesType(Enum):
+    """Represents the input for the ``type`` field of :class:`Embed.with_multiple_images`."""
+
+    image = "image"
+    """The input is an image."""
+    thumbnail = "thumbnail"
+    """The input is a thumbnail."""

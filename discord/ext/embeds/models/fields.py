@@ -44,7 +44,8 @@ class EmbedField(BaseEmbedDataclass):
     """The index of the field."""
 
     def __post_init__(self) -> None:
-        self.value = str(self.value) if self.value is not None else "\u200b"
+        self.name = str(self.name)
+        self.value = str(self.value)
 
     def __repr__(self) -> str:
         return f"<EmbedField name={self.name!r} value={self.value!r} inline={self.inline} index={self.index}>"
@@ -151,3 +152,9 @@ class EmbedFields(list[EmbedField]):
 
     def __repr__(self) -> str:
         return f"<EmbedFields {len(self)} fields>"
+
+    def __bool__(self) -> bool:
+        return bool(len(self))
+
+    def total_fields_length(self) -> int:
+        return sum(len(field.name) + len(field.value) for field in self)

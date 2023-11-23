@@ -3,6 +3,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Generic,
+    Literal,
     Type,
     TypeVar,
     Union,
@@ -25,8 +26,7 @@ from .models import (
     EmbedMedia,
     EmbedProvider,
 )
-from .enums import EmbedMediaType
-from .errors import LimitReached
+from .enums import EmbedMediaType, MultiImagesType
 from .limit import _EmbedLimits
 from . import utils
 
@@ -55,12 +55,11 @@ __all__ = ("Embed",)
 if TYPE_CHECKING:
     from typing_extensions import TypeVar  # noqa: F811 # it's different.
 
-    TitleT = TypeVar("TitleT", bound=Optional[str], default=None)
-    DescriptionT = TypeVar("DescriptionT", bound=Optional[str], default=None)
+    TitleT = TypeVar("TitleT", bound=Optional["SupportsCastingToString"], default=None)
+    DescriptionT = TypeVar("DescriptionT", bound=Optional["SupportsCastingToString"], default=None)
 else:
-    TitleT = TypeVar("TitleT", bound=Optional[str], covariant=True)
-    DescriptionT = TypeVar("DescriptionT", bound=Optional[str], covariant=True)
-
+    TitleT = TypeVar("TitleT", bound=Optional["SupportsCastingToString"], covariant=True)
+    DescriptionT = TypeVar("DescriptionT", bound=Optional["SupportsCastingToString"], covariant=True)
 
 
 class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
@@ -107,6 +106,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
         :exc:`LimitReached` will be raised if the limit is reached.
     """
+
     # https://discord.com/developers/docs/resources/channel#embed-object
     LIMITS: _EmbedLimits = _EmbedLimits(
         title=256,
@@ -116,6 +116,8 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         field_value=1024,
         footer_text=2048,
         author_name=256,
+        embed=6000,
+        embeds=10,
     )
 
     _fields: EmbedFields
@@ -156,18 +158,18 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         *,
         title: TitleT = None,
         description: DescriptionT = None,
-        colour: Optional[Union[int, discord.Colour, str]] = discord.Colour.dark_theme(),
-        color: Optional[Union[int, discord.Colour, str]] = discord.Colour.dark_theme(),
+        colour: Optional[Union[int, discord.Colour, SupportsCastingToString]] = discord.Colour.dark_theme(),
+        color: Optional[Union[int, discord.Colour, SupportsCastingToString]] = discord.Colour.dark_theme(),
         url: Optional[SupportsCastingToString] = None,
         timestamp: Optional[datetime] = None,
-        image: Optional[Union[str, discord.File, EmbedMedia]] = None,
+        image: Optional[Union[SupportsCastingToString, discord.File, EmbedMedia]] = None,
         fields: list[EmbedField] = [],
-        thumbnail: Optional[Union[str, discord.File, EmbedMedia]] = None,
-        footer: Optional[Union[str, EmbedFooter, User]] = None,
-        author: Optional[Union[str, EmbedAuthor, User]] = None,
+        thumbnail: Optional[Union[SupportsCastingToString, discord.File, EmbedMedia]] = None,
+        footer: Optional[Union[SupportsCastingToString, EmbedFooter, User]] = None,
+        author: Optional[Union[SupportsCastingToString, EmbedAuthor, User]] = None,
         check_limits: bool = True,
     ) -> None:
-        self._check_limits = check_limits
+        self._check_limits = self.LIMITS.is_enabled() if check_limits else False
 
         self.type: EmbedTypeData = "rich"
 
@@ -179,10 +181,6 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         )
         for attr, value in with_set_methods:
             getattr(self, f"set_{attr}")(value)
-
-        self.description = description
-        if self.description is not None:
-            self.description = str(description)
 
         _colour = colour if colour is not None else color
         if _colour is not None:
@@ -209,6 +207,39 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(title={self.title!r} color={self.color!r} url={self.url!r} timestamp={self.timestamp!r})"
 
+    def __len__(self) -> int:
+        count: int = 0
+        if self.title:
+            count += len(self.title)
+        if self.description:
+            count += len(self.description)
+        if self.footer:
+            count += len(self.footer)
+        if self.author:
+            count += len(self.author)
+        if self.fields:
+            count += self.fields.total_fields_length()
+
+        return count
+
+    def __bool__(self) -> bool:
+        return any(
+            (
+                self.title,
+                self.description,
+                self.url,
+                self.colour,
+                self.timestamp,
+                self.footer,
+                self.author,
+                self.fields,
+                self.image,
+                self.thumbnail,
+                self.video,
+                self.provider,
+            )
+        )
+
     def _delete_attribute(self, attribute: str) -> None:
         try:
             delattr(self, attribute)
@@ -234,6 +265,82 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
         embed_dict: EmbedData = embed_instance.to_dict()
         return cls.from_dict(embed_dict)
+
+    @classmethod
+    def with_multiple_images(
+        cls,
+        *images: Union[SupportsCastingToString, discord.File, EmbedMedia],
+        type: Union[MultiImagesType, Literal["image", "thumbnail"]] = MultiImagesType.image,
+        title: Optional[SupportsCastingToString] = None,
+        description: Optional[SupportsCastingToString] = None,
+        colour: Optional[Union[int, discord.Colour, str]] = discord.Colour.dark_theme(),
+        color: Optional[Union[int, discord.Colour, str]] = discord.Colour.dark_theme(),
+        url: Optional[SupportsCastingToString] = None,
+        timestamp: Optional[datetime] = None,
+        fields: list[EmbedField] = [],
+        footer: Optional[Union[SupportsCastingToString, EmbedFooter, User]] = None,
+        author: Optional[Union[SupportsCastingToString, EmbedAuthor, User]] = None,
+        check_limits: bool = True,
+    ) -> list[Embed[Any, Any]]:
+        """Helper method to create an embed with multiple images.
+
+        This will create a main embed with the passed parameters and then create an embed for each image passed.
+        This is currenly a "hack" as it's not documented in the API docs.
+        At the time of writing, the `url` field is required for this to work.
+
+        Currently only 4 first images are shown, the rest are ignored (by the api).
+
+        Parameters
+        ----------
+        type: :class:`MultiImagesType`
+            The type of the images. Can be ``image`` or ``thumbnail``. Defaults to ``image``.
+        *images: Union[:class:`str`, :class:`discord.File`, :class:`EmbedMedia`]
+            The images to add to the embed. Can be a URL, a :class:`discord.File` or an instance of :class:`EmbedMedia`.
+
+        Other parameters are the same as :class:`Embed`. They are used for the main, first embed.
+
+        Returns
+        -------
+        list[:class:`Embed`]
+            A list of :class:`Embed` each representing an embed with an image.
+            This can be passed to the `embeds=` kwarg of all the send methods.
+        """
+        to_call = "set_image" if type is MultiImagesType.image else "set_thumbnail"
+        _images = list(images)
+
+        main_embed = cls.__new__(cls)
+        main_embed.__init__(
+            title=title,
+            description=description,
+            colour=colour,
+            color=color,
+            url=url,
+            timestamp=timestamp,
+            fields=fields,
+            footer=footer,
+            author=author,
+            check_limits=check_limits,
+        )
+        first_image = _images.pop(0)
+        getattr(main_embed, to_call)(first_image)
+
+        embeds: list[Embed[Any, Any]] = [main_embed]
+
+        image_type = type
+        if not isinstance(image_type, MultiImagesType):
+            try:
+                image_type = MultiImagesType(type)
+            except ValueError:
+                raise ValueError(
+                    "type must be an instance of MultiImagesType or one of 'image', 'thumbnail'. Got {type!r} instead."
+                )
+
+        for image in _images:
+            embed: Embed[Any, Any] = main_embed.clone()
+            getattr(embed, to_call)(image)
+            embeds.append(embed)
+
+        return embeds
 
     def medias(self) -> list[EmbedMedia]:
         """Returns a list of all medias in the embed.
@@ -361,12 +468,12 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         :class:`Embed`
             The embed itself.
         """
-        self.timestamp = timestamp 
+        self.timestamp = timestamp
         return self
 
     def set_image(
         self,
-        image: Optional[Union[SupportsCastingToString, discord.File]] = None,
+        image: Optional[Union[SupportsCastingToString, discord.File, EmbedMedia]] = None,
         *,
         url: Optional[SupportsCastingToString] = None,
     ) -> Self:
@@ -389,7 +496,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
             self._delete_attribute("_image")
             return self
 
-        self._image = EmbedMedia.construct(EmbedMediaType.image, image or url)
+        self._image = EmbedMedia.construct(EmbedMediaType.image, image or url)  # type: ignore
         return self
 
     def set_thumbnail(
@@ -417,7 +524,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
             self._delete_attribute("_thumbnail")
             return self
 
-        self._image = EmbedMedia.construct(EmbedMediaType.thumbnail, thumbnail or url)
+        self._image = EmbedMedia.construct(EmbedMediaType.thumbnail, thumbnail or url)  # type: ignore
         return self
 
     def set_footer(
@@ -448,7 +555,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
             self._delete_attribute("_footer")
             return self
 
-        kwargs = {"text": text}
+        kwargs: dict[str, Any] = {"text": text}
         if icon is not None:
             if isinstance(icon, discord.File):
                 kwargs["icon_file"] = icon
@@ -457,7 +564,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         else:
             kwargs["icon_url"] = icon_url
 
-        self._footer = EmbedFooter(**kwargs)  # type: ignore
+        self._footer = EmbedFooter(**kwargs)
         return self
 
     def set_author(
@@ -488,7 +595,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
             self._delete_attribute("_author")
             return self
 
-        kwargs = {"name": name}
+        kwargs: dict[str, Any] = {"name": name}
         if icon is not None:
             if isinstance(icon, discord.File):
                 kwargs["icon_file"] = icon
@@ -497,7 +604,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         else:
             kwargs["icon_url"] = icon_url
 
-        self._author = EmbedAuthor(**kwargs)  # type: ignore
+        self._author = EmbedAuthor(**kwargs)
         return self
 
     async def send(
@@ -551,6 +658,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
         kwargs["embeds"] = embeds
         kwargs["files"] = files
+        self.LIMITS.check_limit_of("embeds", embeds)
         return await send_method(content=content, **kwargs)  # type: ignore
 
     # COLOUR
@@ -561,7 +669,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         return getattr(self, "_colour", None)
 
     @colour.setter
-    def colour(self, value: Optional[Union[int, discord.Colour, str]]) -> None:
+    def colour(self, value: Optional[Union[int, discord.Colour, SupportsCastingToString]]) -> None:
         """Sets the colour of the embed.
 
         Parameters
@@ -577,18 +685,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         TypeError
             ``value`` is not an instance of :class:`discord.Colour`, int, str or None.
         """
-        if value is None:
-            self._colour = None
-        elif isinstance(value, discord.Colour):
-            self._colour = value
-        elif isinstance(value, int):
-            self._colour = discord.Colour(value=value)
-        elif isinstance(value, str):
-            self._colour = discord.Colour.from_str(value)
-        else:
-            raise TypeError(
-                f"Expected discord.Colour, int, str or None but received {value.__class__.__name__} instead."
-            )
+        self._colour = utils.handle_colour({"colour": value})
 
     @colour.deleter
     def colour(self) -> None:
@@ -625,7 +722,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
             An instance of :class:`EmbedFields` that contains the fields of the embed.
             You can loop over this object to get the fields or use the methods to get, add, edit or remove fields.
         """
-        return getattr(self, "_fields", EmbedFields(self))  # type: ignore
+        return getattr(self, "_fields", EmbedFields())  # type: ignore
 
     @fields.setter
     def fields(self, fields: Optional[list[EmbedField]]) -> None:
@@ -977,13 +1074,13 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
         if not isinstance(footer, (str, EmbedFooter, discord.User, discord.Member)):
             raise TypeError(
-                "footer must be a string, an instance of EmbedFooter or a discord.User/Member object, not {footer.__class__.__name__}"
+                f"footer must be a string, an instance of EmbedFooter or a discord.User/Member object, not {footer!r}"
             )
 
         if isinstance(footer, (discord.User, discord.Member)):
             footer = EmbedFooter(text=footer.display_name, icon_url=footer.display_avatar.url)
-        elif not isinstance(footer, EmbedAuthor):
-            footer = EmbedAuthor(name=footer)
+        elif not isinstance(footer, EmbedFooter):
+            footer = EmbedFooter(text=footer)
 
         self._footer = footer
 
@@ -1033,7 +1130,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
         if not isinstance(author, (str, EmbedAuthor, discord.User, discord.Member)):
             raise TypeError(
-                "author must be a string, an instance of EmbedAuthor or a discord.User/Member object, not {footer.__class__.__name__}"
+                f"author must be a string, an instance of EmbedAuthor or a discord.User/Member object, not {author!r}"
             )
 
         if isinstance(author, (discord.User, discord.Member)):
@@ -1108,8 +1205,10 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         del self.author
         del self.footer
         copied = deepcopy(self)
-        copied.author = author
-        copied.footer = footer
+        if isinstance(author, EmbedAuthor):
+            copied.author = author
+        if isinstance(footer, EmbedFooter):
+            copied.footer = footer
         return copied
 
     # ------------------
@@ -1161,62 +1260,26 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         if self._check_limits:
             limits = self.LIMITS
 
+            # embed
+            limits.check_limit_of("embed", self)
+
             # title
-            if self.title and len(self.title) > limits.title:
-                raise LimitReached(
-                    "title",
-                    limits.title,
-                    len(self.title),
-                )
+            limits.check_limit_of("title", self.title)
             # description
-            if self.description and len(self.description) > limits.description:
-                raise LimitReached(
-                    "description",
-                    limits.description,
-                    len(self.description),
-                )
+            limits.check_limit_of("description", self.description)
             # footer_text
-            if self.footer and self.footer.text and len(self.footer.text) > limits.footer_text:
-                raise LimitReached(
-                    "footer_text",
-                    limits.footer_text,
-                    len(self.footer.text),
-                )
+            limits.check_limit_of("footer_text", self.footer.text)
             # author_name
-            if self.author and self.author.name and len(self.author.name) > limits.author_name:
-                raise LimitReached(
-                    "author_name",
-                    limits.author_name,
-                    len(self.author.name),
-                )
+            limits.check_limit_of("author_name", self.author.name)
             # fields
             if self.fields:
-                if len(self.fields) > limits.fields:
-                    raise LimitReached(
-                        "fields",
-                        limits.fields,
-                        len(self.fields),
-                    )
-                # field_name
+                # fields
+                limits.check_limit_of("fields", self.fields)
                 for idx, field in enumerate(self.fields):
-                    if len(field.name) > limits.field_name:
-                        raise LimitReached(
-                            f"field_name",
-                            limits.field_name,
-                            len(field.name),
-                            field_index=idx,
-                            object=field,
-                        )
+                    # field_name
+                    limits.check_limit_of("field_name", field.name, field_index=idx, object=field)
                     # field_value
-                    if len(field.value) > limits.field_value:
-                        raise LimitReached(
-                            f"field_value",
-                            limits.field_value,
-                            len(field.value),
-                            field_index=idx,
-                            object=field,
-                        )
-
+                    limits.check_limit_of("field_value", field.value, field_index=idx, object=field)
 
         return result  # type: ignore
 
@@ -1257,10 +1320,8 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         if self.url is not None:
             self.url = str(self.url)
 
-        try:
-            self._colour = discord.Colour(value=data["color"])
-        except KeyError:
-            pass
+        if (colour := utils.handle_colour(data)) is not None:  # type: ignore
+            self._colour = colour
 
         try:
             self._timestamp = discord.utils.parse_time(data["timestamp"])
@@ -1284,7 +1345,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
                 if not is_dataclass(data_value):
                     data_cls = attr_to_class[attr]
                     if attr in ("image", "video", "thumbnail"):
-                        data_value["media_type"] = EmbedMediaType[attr.upper()]  # type: ignore # if-statement above ensures this is valid
+                        data_value["media_type"] = EmbedMediaType[attr.lower()]  # type: ignore # if-statement above ensures this is valid
 
                         data_value = data_cls.from_dict(data_value)  # type: ignore # dwai
 

@@ -1,7 +1,8 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Literal, NotRequired, Protocol, Sized, Tuple, Type, TypedDict, Union, type_check_only
+from typing import TYPE_CHECKING, Literal, Protocol, Sized, Tuple, Type, TypedDict, Union
 
 if TYPE_CHECKING:
+    from typing_extensions import NotRequired
     from .models import *
 
     from discord import Message, PartialMessage, WebhookMessage, InteractionMessage
@@ -18,10 +19,11 @@ if TYPE_CHECKING:
 
 __all__ = ()
 
-@type_check_only
+
 class SupportsCastingToString(Protocol[Sized]):
     def __str__(self) -> str:
         ...
+
     def __len__(self) -> int:
         ...
 

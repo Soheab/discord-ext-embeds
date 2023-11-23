@@ -51,3 +51,9 @@ class EmbedAuthor(WithIconURL):
         self.name = str(self.name)
         self.url = str(self.url) if self.url else None
         super().__post_init__()
+
+    def __len__(self) -> int:
+        return len(self.name)
+
+    def __bool__(self) -> bool:
+        return bool(self.name)

@@ -10,7 +10,7 @@ __all__ = ("LimitReached",)
 
 class LimitReached(DiscordException):
     """Exception raised when the maximum number of x is reached.
-    
+
     Parameters
     ----------
     limit_of: :class:`str`
@@ -46,4 +46,6 @@ class LimitReached(DiscordException):
         )
         OBJECT = f" ({self.object})" if self.object is not None else ""
         INDEX = f" at index {field_index}" if field_index is not None else ""
-        super().__init__(f"The limit of {limit_of}{OBJECT}{INDEX} was reached ({current}/{limit}).\nDisclaimer: {DISCLAIMER}")
+        super().__init__(
+            f"The limit of {limit_of}{OBJECT}{INDEX} was reached ({current}/{limit}).\nDisclaimer: {DISCLAIMER}"
+        )

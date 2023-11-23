@@ -67,7 +67,7 @@ class EmbedMedia:
         r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
     )
     media_type: EmbedMediaType
-    """The type of media. Can be one of ``"image"``, ``"video"``, ``"thumbnail"``, ``"footer_icon"``, or ``"author_icon"``."""
+    """The type of media."""
     file: Optional[discord.File] = field(default=None, repr=False)
     """The file of the media."""
     url: Optional[SupportsCastingToString] = field(default=None)
@@ -96,6 +96,9 @@ class EmbedMedia:
 
         if self.file:
             self.url = self.URL_WITH_FILE_PLACEHOLDER.format(filename=self.file.filename)
+
+    def __bool__(self) -> bool:
+        return bool(self.url or self.file)
 
     def replace(self, **kwargs: Any) -> Self:
         for attr, value in kwargs.items():
@@ -129,7 +132,11 @@ class EmbedMedia:
             The dict representation of the media.
             A ``"media_type"`` key is required.
         """
-        cls_attrs = {"media_type": EmbedMediaType[data["media_type"].upper()], "url": data["url"]}  # type: ignore
+        media_type = data["media_type"]  # type: ignore
+        if isinstance(media_type, str):
+            media_type = EmbedMediaType[media_type.lower()]
+
+        cls_attrs = {"media_type": media_type, "url": data["url"]}  # type: ignore
         inst = cls(**cls_attrs)  # type: ignore
         if inst.media_type in (EmbedMediaType.image, EmbedMediaType.video, EmbedMediaType.thumbnail):
             inst = inst.replace(

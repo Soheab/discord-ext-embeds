@@ -35,7 +35,7 @@ class EmbedFooter(WithIconURL):
     media_type: ClassVar[EmbedMediaType] = EmbedMediaType.footer_icon
     """The media type of the footer."""
     icon_url: Optional[SupportsCastingToString] = None
-    """The icon URL of the footer."""
+    """The icon URL of the footer. This cannot be used with ``icon_file``."""
     icon_file: Optional[discord.File] = None
     """The icon file of the footer. This cannot be used with ``icon_url``."""
     proxy_icon_url: Optional[str] = field(default=None, init=False)
@@ -44,3 +44,9 @@ class EmbedFooter(WithIconURL):
     def __post_init__(self):
         self.text = str(self.text)
         super().__post_init__()
+
+    def __len__(self) -> int:
+        return len(self.text)
+
+    def __bool__(self) -> bool:
+        return bool(self.text)

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class BaseEmbedDataclass:
     def __call__(self, *args: Any, **kwargs: Any):
         return self.from_dict(*args, **kwargs)
-    
+
     @recursive_repr()
     def __repr__(self) -> str:
         human_attrs = ", ".join(f"{attr}={value!r}" for attr, value in self.__dict__.items())
@@ -67,12 +67,12 @@ class WithIconURL(BaseEmbedDataclass):
     def from_user(cls, user: Union[discord.Member, discord.User]) -> WithIconURL:
         """Create an instance of this class from a :class:`~discord.User` or :class:`~discord.Member` object.
 
-        This method will attempt to use the ``name`` or ``text`` field of the class to set the user's display name 
+        This method will attempt to use the ``name`` or ``text`` field of the class to set the user's display name
         and the ``icon_url`` field to set the user's display_avatar.
         Parameters
         ----------
         user: Union[discord.Member, discord.User]
-            The user to create the instance from.    
+            The user to create the instance from.
         """
         all_fields = cls.__dataclass_fields__
 
