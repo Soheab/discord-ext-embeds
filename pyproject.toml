@@ -34,7 +34,7 @@ classifiers = [
 dev = ["black", "ruff", "pyright", "typing_extensions"]
 
 [tool.setuptools]
-packages = ["discord", "discord.ext", "discord.ext.embeds"]
+packages = ["discord", "discord.ext", "discord.ext.embeds", discord.ext.embeds.models"]
 
 [project.urls]
 homepage = "https://github.com/Soheab/discord-ext-embeds"
@@ -47,7 +47,7 @@ readme = { file = ["README.md"], content-type = "text/markdown" }
 
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
 [tool.pyright]
-include = ["discord", "discord.ext", "discord.ext.embeds"]
+include = ["discord", "discord.ext", "discord.ext.embeds", "discord.ext.embeds.models"]
 exclude = ["**/__pycache__", "dist",]
 reportUnnecessaryTypeIgnoreComment = "warning"
 reportUnusedImport = "error"
@@ -70,7 +70,7 @@ line-length = 120
 fix = true # default: false
 line-length = 120 # default: 88
 fixable = ["ALL"]  # default: ["ALL"]
-include = ["discord", "discord.ext", "discord.ext.embeds"]
+include = ["discord", "discord.ext", "discord.ext.embeds", "discord.ext.embeds.models"]
 exclude = ["**/__pycache__", "_build", "build", "dist", "docs"]
 ignore = ["F403", "F405"]  # default: []
 respect-gitignore = false  # default: true
