@@ -27,7 +27,7 @@ from .models import (
     EmbedProvider,
 )
 from .enums import EmbedMediaType, MultiImagesType
-from . import utils
+from . import utils, limit
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -107,7 +107,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
     """
 
     # https://discord.com/developers/docs/resources/channel#embed-object
-    LIMITS: _EmbedLimits = _EmbedLimits(
+    LIMITS: limit._EmbedLimits = limit._EmbedLimits(
         title=256,
         description=4096,
         fields=25,
