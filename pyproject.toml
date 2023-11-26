@@ -34,7 +34,7 @@ classifiers = [
 dev = ["black", "ruff", "pyright", "typing_extensions"]
 
 [tool.setuptools]
-packages = ["discord", "discord.ext", "discord.ext.embeds", discord.ext.embeds.models"]
+packages = ["discord", "discord.ext", "discord.ext.embeds", "discord.ext.embeds.models"]
 
 [project.urls]
 homepage = "https://github.com/Soheab/discord-ext-embeds"
