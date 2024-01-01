@@ -1229,7 +1229,10 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
                     value = value.to_dict()
 
                 if key in ("_image", "_thumbnail"):
-                    result[key[1:]] = value[key[1:]]
+                    try:
+                        result[key[1:]] = value[key[1:]]
+                    except KeyError:
+                        continue
                 else:
                     result[key[1:]] = value
 
