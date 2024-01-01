@@ -1221,6 +1221,8 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         for key in self.__user_attributes__:
             if key[0] == "_" and hasattr(self, key):
                 value = getattr(self, key)
+                if not value:
+                    continue
                 if key in ("_fields",):
                     value = value.to_dict()
                 if is_dataclass(value):
