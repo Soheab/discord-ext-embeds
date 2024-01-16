@@ -695,6 +695,10 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
     # FIELDS MANAGEMENT
 
+    def clear_fields(self) -> None:
+        """Removes all fields from the embed."""
+        self._delete_attribute("_fields")
+
     def __add_fields(self, fields: list[EmbedField], index: Optional[int] = None) -> None:
         if not fields:
             return None
