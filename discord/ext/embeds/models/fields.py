@@ -140,8 +140,8 @@ class EmbedFields(list[EmbedField]):
         field = EmbedField(name, value, inline, index)
         self.append(field, index)
 
-    def to_dict(self) -> Sequence[EmbedFieldData]:
-        return [field.to_dict for field in self.fields]  # type: ignore
+    def to_dict(self) -> list[EmbedFieldData]:
+        return [field.to_dict() for field in self]  # type: ignore
 
     def add_from_dict(self, data: Sequence[EmbedFieldData]) -> None:
         self.extend(EmbedField.from_dict(field) for field in data)

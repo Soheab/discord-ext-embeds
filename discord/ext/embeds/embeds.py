@@ -134,6 +134,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         "_author",
         "_video",
         "_provider",
+        "_fields",
     )
     __slots__ = (
         "title",
