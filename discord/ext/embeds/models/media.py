@@ -85,7 +85,7 @@ class EmbedMedia:
         if not self.url and not self.file:
             raise ValueError("Either url or file must be passed.")
 
-        if self.url and self.check_url:
+        if self.url and self.check_url and not self.url.startswith("attachment://"):
             if not self.URL_REGEX.match(str(self.url)):
                 raise ValueError(f"Invalid {self.media_type} URL {self.url!r}")
 
