@@ -55,6 +55,8 @@ class EmbedMedia:
         The height of the media.
     width: Optional[:class:`int`]
         The width of the media.
+    flags: :class:`discord.AttachmentFlags`
+        The flags of the media.
 
     Raises
     ------
@@ -81,11 +83,14 @@ class EmbedMedia:
     width: Optional[int] = field(default=None, repr=False, init=False)
     """The width of the media."""
 
+    _flags: int = field(default=0, repr=False, init=False)
+    """The flags of the media."""
+
     def __post_init__(self) -> None:
         if not self.url and not self.file:
             raise ValueError("Either url or file must be passed.")
 
-        if self.url and self.check_url and not self.url.startswith("attachment://"):
+        if self.url and self.check_url and not str(self.url).startswith("attachment://"):
             if not self.URL_REGEX.match(str(self.url)):
                 raise ValueError(f"Invalid {self.media_type} URL {self.url!r}")
 
@@ -105,6 +110,9 @@ class EmbedMedia:
             if attr not in self.__annotations__:
                 raise AttributeError(f"{attr} is not an attribute of {self.__class__.__name__}")
 
+            if attr.startswith("_"):
+                raise AttributeError(f"{attr} is a private attribute of {self.__class__.__name__}. They cannot be set.")
+
             setattr(self, attr, value)
 
         return self
@@ -117,10 +125,22 @@ class EmbedMedia:
         :class:`dict`
             The dict representation of this media.
         """
+        data: dict[str, str | int] = {"url": self.url}  # type: ignore
         _type = self.media_type.value
         if _type in ("footer_icon", "author_icon"):
             _type = "icon_url"
-        return {_type: {"url": self.url}}  # type: ignore
+        else:
+            data["flags"] = self._flags
+
+        return {_type: data}  # type: ignore
+
+    @property
+    def flags(self) -> discord.AttachmentFlags:
+        """The flags of the media.
+
+        .. versionadded:: 2.5
+        """
+        return discord.AttachmentFlags._from_value(self._flags)
 
     @classmethod
     def from_dict(cls, data: EmbedMediaData) -> Self:
@@ -145,6 +165,8 @@ class EmbedMedia:
                 proxy_url=data.get("proxy_url"),
             )
 
+        inst._flags = data.get("flags", 0)
+
         return inst
 
     @classmethod
@@ -162,4 +184,18 @@ class EmbedMedia:
         else:
             kwargs["url"] = value
 
-        return cls(**kwargs)
+        inst = cls(**kwargs)
+        if isinstance(value, dict):
+            if "flags" in value:
+                inst._flags = value["flags"]
+
+            if "proxy_url" in value:
+                inst.proxy_url = value["proxy_url"]
+
+            if "height" in value:
+                inst.height = value["height"]
+
+            if "width" in value:
+                inst.width = value["width"]
+
+        return inst

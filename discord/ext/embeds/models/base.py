@@ -32,7 +32,11 @@ class BaseEmbedDataclass:
         return cls(**data)
 
     def to_dict(self) -> PossibleData:
-        return {key: str(value) if not isinstance(value, bool) else value for key, value in asdict(self).items() if value is not None}  # type: ignore
+        return {
+            key: str(value) if not isinstance(value, bool) else value
+            for key, value in asdict(self).items()
+            if value is not None
+        }  # type: ignore
 
     def replace(self, **kwargs: Any) -> Self:
         for attr, value in kwargs.items():
@@ -89,7 +93,7 @@ class WithIconURL(BaseEmbedDataclass):
         else:
             raise TypeError("Cannot determine which field to use for the user's display name")
 
-        return cls(**kwargs)  # type: ignore # not sure why this is an error, not even using icon_file
+        return cls(**kwargs)
 
     @discord.utils.cached_property
     def media(self) -> Optional[EmbedMedia]:

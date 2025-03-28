@@ -12,20 +12,16 @@ if TYPE_CHECKING:
         EmbedFooter as EmbedFooterData,
         EmbedAuthor as EmbedAuthorData,
         EmbedProvider as EmbedProviderData,
-        EmbedImage as EmbedImageData,
-        EmbedVideo as EmbedVideoData,
-        EmbedThumbnail as EmbedThumbnailData,
+        EmbedMedia as EmbedMediaData,
     )
 
 __all__ = ()
 
 
 class SupportsCastingToString(Protocol[Sized]):
-    def __str__(self) -> str:
-        ...
+    def __str__(self) -> str: ...
 
-    def __len__(self) -> int:
-        ...
+    def __len__(self) -> int: ...
 
 
 class FieldDict(TypedDict):
@@ -52,7 +48,6 @@ PossibleData = Union[
     "EmbedData",
     "EmbedProviderData",
 ]
-EmbedMediaData = Union["EmbedImageData", "EmbedVideoData", "EmbedThumbnailData"]
 PossibleClassTypes = Type[  # noqa: F405
     Union[
         "EmbedFooter",
@@ -63,8 +58,15 @@ PossibleClassTypes = Type[  # noqa: F405
         "EmbedFields",
     ]
 ]
-MediaTypes = Literal["image", "video", "thumbnail"]
-EmbedMediaDataDictReturn = dict[MediaTypes, dict[Literal["url"], str]]
+MediaTypes = Literal["image", "video", "thumbnail", "icon_url"]
+
+
+class EmbedMediaDataDictReturnValue(TypedDict):
+    url: str
+    flags: NotRequired[int]
+
+
+EmbedMediaDataDictReturn = dict[MediaTypes, EmbedMediaDataDictReturnValue]
 
 PossibleMessage = Union[
     InteractionMessage,

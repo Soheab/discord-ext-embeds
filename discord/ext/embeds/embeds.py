@@ -150,6 +150,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         "_author",
         "_video",
         "_provider",
+        "_flags",
         "_check_limits",
     )
 
@@ -172,6 +173,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         self._check_limits = self.LIMITS.is_enabled() if check_limits else False
 
         self.type: EmbedTypeData = "rich"
+        self._flags: int = 0
 
         with_set_methods = (
             ("title", title),
@@ -1186,6 +1188,17 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         return utils._maybe_construct("provider", getattr(self, "_provider", {}))
 
     # ------------------
+    # FLAGS
+
+    @property
+    def flags(self) -> discord.EmbedFlags:
+        """:class:`EmbedFlags`: The flags of this embed.
+
+        .. versionadded:: 2.5
+        """
+        return discord.EmbedFlags._from_value(self._flags or 0)
+
+    # ------------------
 
     # COPY / CLONE
 
@@ -1231,7 +1244,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
                 if key in ("_fields",):
                     value = value.to_dict()
                 if is_dataclass(value):
-                    value = value.to_dict()
+                    value = value.to_dict()  # type: ignore # dwai
 
                 if key in ("_image", "_thumbnail"):
                     try:
@@ -1244,6 +1257,8 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
         for attr in ("title", "description", "url", "type"):
             if value := getattr(self, attr, None):
                 result[attr] = str(value)
+
+        result["flags"] = self._flags
 
         try:
             colour = result.pop("colour")
@@ -1313,6 +1328,7 @@ class Embed(discord.Embed, Generic[TitleT, DescriptionT]):
 
         # fill in the basic fields
         self.type: EmbedTypeData = data.get("type")  # type: ignore
+        self._flags = data.get("flags", 0)
 
         self.title = data.get("title", None)
 
